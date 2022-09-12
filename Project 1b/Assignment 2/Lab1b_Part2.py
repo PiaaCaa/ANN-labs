@@ -29,7 +29,7 @@ def mackey_glass(t, time_series):
     return xt + beta * xt_minus_tau / (1 + xt_minus_tau ** n) - gamma * xt
 
 #4.1 Data - generate dataset given Mackey-Glass time series
-def generate_data():
+def generate_data(include_noise=False, sigma=0.15):
     t0 = 301
     t1 = 1500
     tf = 2000
@@ -39,10 +39,22 @@ def generate_data():
     time_series = []
     time_series.append(x0)
 
+    # Generate time series from t=0 to t= 2000
     for t in range(0, tf):
         xt_plus_1 = mackey_glass(t, time_series)
         time_series.append(xt_plus_1)
 
+    #Add Gaussian noise if selected
+    if include_noise:
+        #Set seed for random generation of numbers
+        np.random.seed(9)
+        #Generate gaussian noise with given variance sigma
+        noise = np.random.normal(0, sigma, len(time_series))
+        #Add noise
+        time_series = time_series + noise
+
+
+    # Create input and output datasets from t=300 to t=1500
     input_dataset = []
     output_dataset = []
     time_dataset = []
@@ -59,10 +71,21 @@ def generate_data():
     time_array = np.array(time_dataset)
     print("Array: ", input_array)
     print("Array: ", output_array)
-    #plt.plot(dataset_array[:, 5], dataset_array[:, 0])
-    #plt.show()
 
-    return input_array, output_array
+    ds_size = len(input_array)
+
+    #Splitting input into train, validation and test set
+    x_train = input_array[0:800]
+    x_val = input_array[800:1000]
+    x_test = input_array[1000:]
+
+    #Splitting output into train, validation and test set
+    y_train = output_array[0:800]
+    y_val = output_array[800:1000]
+    y_test = output_array[1000:]
+
+    return x_train, x_val, x_test, y_train, y_val, y_test
+
 
 def MLP(input_shape, nodes, layers):
     model = Sequential()
@@ -79,7 +102,7 @@ def MLP(input_shape, nodes, layers):
     return model
 
 def train_model():
-    input, output = generate_data()
+    x_train, x_val, x_test, y_train, y_val, y_test = generate_data()
     inputs = 5
     nodes = [3]
     hidden_layers = 1
@@ -89,12 +112,11 @@ def train_model():
 
     model.summary()
     history = model.fit(
-        input,
-        output,
+        x_train,
+        y_train,
         validation_split=0.2,
         verbose=1, epochs=100
     )
-
     plot_loss(history)
 
 def plot_loss(history):
