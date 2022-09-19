@@ -49,7 +49,7 @@ def training(x, y, n_units, w_init, sigma, mu_s, batch = True):
     if batch:
         w_update = least_squares_learning(out, y)
         print( "L2 Error:", error(RBF(x, n_units, w_update, training=False, sigma=sigma, mu_s=mu_s), y))
-        print("Absolute residual error:", absolute_residual_error(RBF(x, n_units, w_update, training=False, sigma=sigma, mu_s=mu_s), y))
+        print("Absolute residual error train:", absolute_residual_error(RBF(x, n_units, w_update, training=False, sigma=sigma, mu_s=mu_s), y))
         return w_update
 
     #sequential delta rule
@@ -60,6 +60,9 @@ def training(x, y, n_units, w_init, sigma, mu_s, batch = True):
 #visualize function prediction
 def visualize_results(x, w,y, n_units, sigma, mu_s, title= 'Function prediction'):
     prediction = RBF(x, n_units, w, sigma=sigma, mu_s=mu_s, training=False)
+
+    print("Absolute residual error test:", absolute_residual_error(RBF(x, n_units, w, training=False, sigma=sigma, mu_s=mu_s), y))
+
     plt.plot(x, prediction, '-o', label = "prediction")
     plt.plot(x, y, label = "target function")
     plt.title(title)
@@ -72,12 +75,28 @@ def plot_RBF_fcts(x, sigma, mu_s):
     plt.show()
 
 
+def vary_RBFs(x_train, x_test, y_train, y_test, sigma):
+    n_units = np.arange(8, 101)
+    print("_____________________________________")
+    print("Sigma:", sigma)
+    abs_error = []
+    for n_unit in n_units:
+        mu_s = np.linspace(0, 2*np.pi , n_unit)
+        w_res = training(x_train, y_train, n_unit, np.random.normal(n_unit), sigma=sigma, mu_s=mu_s, batch=True)
+
+        res = RBF(x_test, n_unit, w_res, training=False, sigma=sigma, mu_s=mu_s)
+        print("abs res error test:", absolute_residual_error(res, y_test))
+        abs_error.append(absolute_residual_error(res, y_test))
+
+    plt.plot(n_units, np.array(abs_error))
+    plt.show()
+
 if __name__ == '__main__':
     print('Start')
 
     # train and test inputs
     x_train = np.arange(0, 2 * np.pi + 0.1, 0.1)
-    x_test = np.arange(0, 2 * np.pi + 0.05, 0.05)
+    x_test = np.arange(0.05, 2 * np.pi + 0.1, 0.1)
 
     f1_train = f1(x_train)
     f2_train = f2(x_train)
@@ -85,15 +104,12 @@ if __name__ == '__main__':
     f2_test = f2(x_test)
 
 
-
     # f1 training
     n_units = 8
 
     # set RBF values:
-    sigma = 1.2
+    sigma = 1
     mus = np.linspace(0, 2 * np.pi, n_units)
-
-
 
     #result
     w_res = training(x_train, f1_train, n_units, np.random.normal(n_units), sigma=sigma, mu_s=mus)
@@ -101,7 +117,7 @@ if __name__ == '__main__':
     plot_RBF_fcts(x_train, sigma, mus)
 
     # visualize_results(x_train, np.random.normal(n_units), f1_train, n_units, title="Function prediction initial values")
-    visualize_results(x_train, w_res, f1_train, n_units, sigma, mus, title="Function result")
+    visualize_results(x_test, w_res, f1_test, n_units, sigma, mus, title="Function result")
 
 
 
@@ -109,13 +125,17 @@ if __name__ == '__main__':
 
     n_units = x_train.shape[0]
     # set RBF values:
-    sigma = 1#0.05
+    sigma = 0.09
     mus = np.linspace(0,  2*np.pi, n_units)
 
+    plot_RBF_fcts(x_train, sigma, mus)
     w_res = training(x_train, f2_train, n_units, np.random.normal(n_units), sigma=sigma, mu_s=mus)
     #visualize
     # visualize_results(x_test, np.random.normal(n_units), f2_test, n_units, title="Function prediction initial values")
     visualize_results(x_test, w_res, f2_test, n_units, sigma, mus,  title="Function result")
+
+    vary_RBFs(x_train, x_test, f1_train, f1_test, sigma=1)
+    vary_RBFs(x_train, x_test, f2_train, f2_test, sigma=0.09)
 
 
 
