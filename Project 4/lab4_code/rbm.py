@@ -62,7 +62,9 @@ class RestrictedBoltzmannMachine():
             "grid" : [5,5], # size of the grid
             "ids" : np.random.randint(0,self.ndim_hidden,25) # pick some random hidden units
             }
-        
+
+        self.energy_lst = []
+        self.mean_rec_loss = []
         return
 
     def energy(self, W, v, v_bias, h, h_bias):
@@ -122,40 +124,31 @@ class RestrictedBoltzmannMachine():
             self.update_params(v_0, h_0, v_1, h_1)
 
             # print("w max and min", self.weight_vh.max(), self.weight_vh.min())
-            E.append(self.energy(self.weight_vh, v_1, self.bias_v, h_1, self.bias_h))
-
-            if np.any(np.isnan(self.weight_vh)):
-                print("WEIGHTS MATRIX CONTAINS NAN", it)
-            if np.any(np.isnan(v_1)):
-                print("v 1 CONTAINS NAN", it)
-            if np.any(np.isnan(self.bias_v)):
-                print("v bias CONTAINS NAN", it)
-                print("nsamles", n_samples, "idx:", start_idx, end_idx)
-
-            if np.any(np.isnan(h_1)):
-                print("h 1 CONTAINS NAN", it)
-            if np.any(np.isnan(self.bias_h)):
-                print("h bias ONTAINS NAN", it)
+            self.energy_lst.append(self.energy(self.weight_vh, v_1, self.bias_v, h_1, self.bias_h))
 
 
+            self.mean_rec_loss.append(np.average(np.linalg.norm(v_1 - visible_minibatch, axis=1)))
             # visualize once in a while when visible layer is input images
             if it % self.rf["period"] == 0 and self.is_bottom:
                 
                 viz_rf(weights=self.weight_vh[:,self.rf["ids"]].reshape((self.image_size[0],self.image_size[1],-1)), it=it, grid=self.rf["grid"])
+
+                #plot some outcome images
                 plt.subplot(1, 2, 1)
                 plt.imshow(v_0[0, :].reshape(28, 28))
+                plt.axis('off')
 
                 plt.subplot(1, 2, 2)
                 plt.imshow(v_1[0, :].reshape(28, 28))
+                plt.axis('off')
                 plt.show()
 
             # print progress
-            
             if it % self.print_period == 0 :
 
                 print ("iteration=%7d recon_loss=%4.4f"%(it, np.linalg.norm(v_1 - visible_minibatch)))
 
-        return E
+        return
     
 
     def update_params(self,v_0,h_0,v_k,h_k):
