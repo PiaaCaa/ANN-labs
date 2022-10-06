@@ -63,14 +63,25 @@ class RestrictedBoltzmannMachine():
             "ids" : np.random.randint(0,self.ndim_hidden,25) # pick some random hidden units
             }
 
+        #added two attributes of the network for
         self.energy_lst = []
         self.mean_rec_loss = []
         return
 
     def energy(self, W, v, v_bias, h, h_bias):
+        """
+        Calculate energy as in "Practical Guide to Training Restricted Boltzmann Machines"
+        :param W: weight matrix
+        :param v: visible layer
+        :param v_bias: bias visible layer
+        :param h: hidden layer units
+        :param h_bias:  bias hidden layer
+        :return: energy
+        """
         Npts = h.shape[0]
         e = np.zeros(Npts)
 
+        #calculate engery for every point and average the end result
         for p in range(Npts):
             e[p] = - np.dot(v[p, :], v_bias) - np.dot(h[p, :], h_bias) - np.sum(np.multiply(np.outer(v[p, :], h[p, :]), W))
         return np.average(e)
@@ -88,7 +99,6 @@ class RestrictedBoltzmannMachine():
         
         n_samples = visible_trainset.shape[0]
 
-        E = []
         for it in range(n_iterations):
 
 	    # [TODO TASK 4.1] run k=1 alternating Gibbs sampling : v_0 -> h_0 ->  v_1 -> h_1.
@@ -100,17 +110,12 @@ class RestrictedBoltzmannMachine():
             #get indices for mini batch size and use modulo to prevent idx out of bounce
             start_idx = (it*self.batch_size) % (n_samples - self.batch_size)
             end_idx = start_idx+self.batch_size
-            #((it+1)*self.batch_size) % (n_samples+1)
-
-            if end_idx < start_idx:
-                print("PROBLEM!!! end idx larger than start", start_idx, end_idx)
-
-
 
             #get mini batch
             visible_minibatch = visible_trainset[start_idx:end_idx, :]
             v_0 = visible_minibatch.copy()
 
+            #start iteration
             p_h_v, h = self.get_h_given_v(visible_minibatch)
             h_0 = h.copy()
 
@@ -123,16 +128,17 @@ class RestrictedBoltzmannMachine():
             # [TODO TASK 4.1] update the parameters using function 'update_params'
             self.update_params(v_0, h_0, v_1, h_1)
 
-            # print("w max and min", self.weight_vh.max(), self.weight_vh.min())
+            #caculate energy and mean reconstruction loss
             self.energy_lst.append(self.energy(self.weight_vh, v_1, self.bias_v, h_1, self.bias_h))
-
-
             self.mean_rec_loss.append(np.average(np.linalg.norm(v_1 - visible_minibatch, axis=1)))
+
             # visualize once in a while when visible layer is input images
             if it % self.rf["period"] == 0 and self.is_bottom:
                 
                 viz_rf(weights=self.weight_vh[:,self.rf["ids"]].reshape((self.image_size[0],self.image_size[1],-1)), it=it, grid=self.rf["grid"])
 
+            #visualize some reconstructed numbers v1
+            if it % 50 == 0 :
                 #plot some outcome images
                 plt.subplot(1, 2, 1)
                 plt.imshow(v_0[0, :].reshape(28, 28))
@@ -141,6 +147,7 @@ class RestrictedBoltzmannMachine():
                 plt.subplot(1, 2, 2)
                 plt.imshow(v_1[0, :].reshape(28, 28))
                 plt.axis('off')
+                plt.savefig("Show_numbers_"+str(it)+".pdf")
                 plt.show()
 
             # print progress
@@ -168,7 +175,7 @@ class RestrictedBoltzmannMachine():
         # [TODO TASK 4.1] get the gradients from the arguments and update the weight and bias parameters
 
         # From pratical guide to training RBM: implement eq. (6)
-        # Comment: not sure about the += and the update of the bias
+        # Comment: we tried to implement momentum, but it lead to worse results
         self.delta_bias_v = self.learning_rate*(np.mean(v_0-v_k, axis=0))
         self.delta_weight_vh = self.learning_rate*(np.dot(v_0.T, h_0) - np.dot(v_k.T, h_k))
         self.delta_bias_h = self.learning_rate*(np.mean(h_0 - h_k, axis=0))
@@ -199,8 +206,11 @@ class RestrictedBoltzmannMachine():
 
         # [TODO TASK 4.1] compute probabilities and activations (samples from probabilities) of hidden layer
 
+        #probabilities
+        # here sigmoid is used for binary classification (for multiclass classification use softmax)
         p_h_v = sigmoid(np.tile(self.bias_h, (n_samples, 1)) + visible_minibatch @ self.weight_vh)
 
+        #activations
         h = sample_binary(p_h_v)
 
         assert p_h_v.shape == (n_samples,self.ndim_hidden)
